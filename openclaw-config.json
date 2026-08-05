@@ -1,0 +1,36 @@
+{
+  "name": "MABDC OpenClaw Meeting Agent",
+  "version": "1.0.0",
+  "zoom": {
+    "meetingId": "83633925074",
+    "passcode": "4quJY4kaA71kjCtju0gPMCAsp6Uswn.1",
+    "mode": "agent",
+    "autoJoin": true,
+    "breakoutRooms": {
+      "autoOpen": true,
+      "rooms": [
+        "Grade 1",
+        "Grade 2",
+        "Grade 3",
+        "Grade 4",
+        "Grade 5",
+        "Grade 6",
+        "Grade 7",
+        "Grade 8",
+        "Grade 9",
+        "Grade 10",
+        "Grade 11",
+        "Grade 12"
+      ]
+    },
+    "transcription": {
+      "enabled": true,
+      "language": "en-US",
+      "summaryOnEnd": true
+    }
+  },
+  "agent": {
+    "provider": "openclaw",
+    "systemPrompt": "You are the automated AI co-host for MABDC Zoom Meeting. You assist participants across Grade 1 to Grade 12 breakout rooms and capture discussion notes."
+  }
+}

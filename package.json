@@ -1,0 +1,19 @@
+{
+  "name": "zoom-antigravity",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Zoom API Integration and Meeting Manager",
+  "main": "zoom-cli.js",
+  "scripts": {
+    "start": "node server.js",
+    "scheduler": "node auto-scheduler.js",
+    "test": "node test-zoom.js",
+    "user": "node zoom-cli.js user",
+    "list": "node zoom-cli.js list",
+    "create": "node zoom-cli.js create"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "jsrsasign": "^11.1.3"
+  }
+}
