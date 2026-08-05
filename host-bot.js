@@ -75,9 +75,14 @@ export async function launchHostBot() {
 
         // Open Breakout Rooms Modal
         if (text && text.toLowerCase().includes('breakout room') && !roomsOpened) {
-          console.log('🤖 [OPENCLAW] Found Breakout Rooms Button! Clicking...');
-          await page.evaluate(el => el.click(), btn).catch(() => {});
-          await new Promise(r => setTimeout(r, 2000));
+          // Check if settings cog is already visible on the screen to avoid toggling/closing the modal
+          const isCogVisible = await page.$('button[aria-label="Options"], button[aria-label="Settings"], .zm-icon-settings, .breakout-room-setting-btn');
+          
+          if (!isCogVisible) {
+            console.log('🤖 [OPENCLAW] Found Breakout Rooms Button! Opening Modal...');
+            await page.evaluate(el => el.click(), btn).catch(() => {});
+            await new Promise(r => setTimeout(r, 2000));
+          }
 
           // 1. Click Options/Settings Cog button to reveal settings panel
           const optionsBtn = await page.$('button[aria-label="Options"], button[aria-label="Settings"], .zm-icon-settings, .breakout-room-setting-btn');
@@ -141,6 +146,7 @@ export async function launchHostBot() {
               roomsOpened = true;
             }
           }
+          break; // Break the toolbar buttons loop after handling breakout rooms
         }
       }
     } catch (e) {}
