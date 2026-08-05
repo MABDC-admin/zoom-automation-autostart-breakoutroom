@@ -22,10 +22,13 @@ export async function triggerMeetingStart() {
     console.log('▶ Pre-configuring Breakout Rooms (Grade 1 to 12)...');
     await configureBreakoutRooms(MEETING_ID, gradeRooms);
 
-    // 2. Launch Headless Host Bot to open meeting & rooms
+    // 2. Launch Headless Host Bot & Guest Keep-Alive Bot
     if (process.platform === 'linux') {
       console.log('▶ Launching Server Host Bot (Headless Chromium)...');
       activeHostBot = await launchHostBot();
+
+      console.log('▶ Waiting 40 seconds for Host Bot to configure options and open breakout rooms...');
+      await new Promise(r => setTimeout(r, 40000));
 
       console.log('▶ Launching Server Guest Keep-Alive Bot (Prevents Zoom Timeout)...');
       activeGuestBot = await launchGuestBot().catch(err => {
