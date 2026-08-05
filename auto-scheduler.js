@@ -1,10 +1,12 @@
 import { getMeetingDetails, endMeeting, configureBreakoutRooms } from './zoom-cli.js';
 import { launchHostBot } from './host-bot.js';
+import { launchGuestBot } from './guest-bot.js';
 
 const MEETING_ID = '83633925074';
 const gradeRooms = Array.from({ length: 12 }, (_, i) => `Grade ${i + 1}`);
 
 let activeHostBot = null;
+let activeGuestBot = null;
 
 /**
  * Start Meeting, Launch Host Bot & Open Grade 1-12 Rooms
@@ -24,6 +26,12 @@ export async function triggerMeetingStart() {
     if (process.platform === 'linux') {
       console.log('▶ Launching Server Host Bot (Headless Chromium)...');
       activeHostBot = await launchHostBot();
+
+      console.log('▶ Launching Server Guest Keep-Alive Bot (Prevents Zoom Timeout)...');
+      activeGuestBot = await launchGuestBot().catch(err => {
+        console.error('❌ Failed to launch Guest Keep-Alive Bot:', err.message);
+        return null;
+      });
     }
 
     // 3. Fetch Host details
@@ -51,6 +59,12 @@ export async function triggerMeetingEnd() {
     if (activeHostBot?.browser) {
       await activeHostBot.browser.close().catch(() => {});
       activeHostBot = null;
+    }
+
+    if (activeGuestBot?.browser) {
+      if (activeGuestBot.interval) clearInterval(activeGuestBot.interval);
+      await activeGuestBot.browser.close().catch(() => {});
+      activeGuestBot = null;
     }
 
     await endMeeting(MEETING_ID);
