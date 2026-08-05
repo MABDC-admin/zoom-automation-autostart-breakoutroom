@@ -67,30 +67,48 @@ export async function triggerMeetingEnd() {
 function startSchedulerDaemon() {
   console.log('🚀 Zoom Daily Scheduler & Host Bot Daemon Started!');
   console.log('📅 Schedule Rule (Asia/Dubai Timezone):');
-  console.log('   - 🟢 START MEETING & ROOMS : 07:30 GST daily (03:30 UTC)');
-  console.log('   - 🔴 CLOSE ROOMS & END ZOOM: 17:30 GST daily (13:30 UTC)');
+  console.log('   - 🟢 START MEETING & ROOMS : 07:50 GST Weekdays (Mon-Fri) until May 31, 2027');
+  console.log('   - 🔴 CLOSE ROOMS & END ZOOM: 17:30 GST Weekdays (Mon-Fri) until May 31, 2027');
 
   let lastStartDay = null;
   let lastEndDay = null;
 
   setInterval(async () => {
     const now = new Date();
+    
+    // Convert to Asia/Dubai time context for accurate evaluation
+    const dubaiNowStr = now.toLocaleString('en-US', { timeZone: 'Asia/Dubai' });
+    const dubaiNow = new Date(dubaiNowStr);
+    
+    // Expiration date check: May 31, 2027 GST
+    const expireDate = new Date('2027-05-31T23:59:59');
+    if (dubaiNow > expireDate) {
+      console.log('📅 Zoom automation schedule completed. May 31, 2027 limit reached.');
+      return;
+    }
+
     const gstDateStr = now.toLocaleDateString('en-US', { timeZone: 'Asia/Dubai' });
     const gstTimeStr = now.toLocaleTimeString('en-US', { timeZone: 'Asia/Dubai', hour12: false });
     const [hoursStr, minutesStr] = gstTimeStr.split(':');
     const hours = parseInt(hoursStr, 10);
     const minutes = parseInt(minutesStr, 10);
 
-    // Check for 07:30 GST Start
-    if (hours === 7 && minutes === 30 && lastStartDay !== gstDateStr) {
-      lastStartDay = gstDateStr;
-      await triggerMeetingStart();
-    }
+    // Get current day of week in Asia/Dubai
+    const dayOfWeekStr = now.toLocaleDateString('en-US', { timeZone: 'Asia/Dubai', weekday: 'short' });
+    const isWeekday = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].includes(dayOfWeekStr);
 
-    // Check for 17:30 GST Close
-    if (hours === 17 && minutes === 30 && lastEndDay !== gstDateStr) {
-      lastEndDay = gstDateStr;
-      await triggerMeetingEnd();
+    if (isWeekday) {
+      // Check for 07:50 GST Start
+      if (hours === 7 && minutes === 50 && lastStartDay !== gstDateStr) {
+        lastStartDay = gstDateStr;
+        await triggerMeetingStart();
+      }
+
+      // Check for 17:30 GST Close
+      if (hours === 17 && minutes === 30 && lastEndDay !== gstDateStr) {
+        lastEndDay = gstDateStr;
+        await triggerMeetingEnd();
+      }
     }
   }, 30 * 1000);
 }
