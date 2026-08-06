@@ -69,6 +69,17 @@ export async function launchHostBot() {
     try {
       if (roomsOpened) return;
 
+      // Check if breakout rooms are already active/open
+      const allButtons = await page.$$('button, .zm-btn, .wc-btn-primary');
+      for (const btn of allButtons) {
+        const text = await page.evaluate(el => el.innerText || el.textContent || '', btn);
+        if (text && (text.toLowerCase().includes('close all rooms') || text.toLowerCase().includes('close rooms'))) {
+          console.log('🤖 [OPENCLAW] Breakout rooms are already active/open. Stopping clicker.');
+          roomsOpened = true;
+          return;
+        }
+      }
+
       // Click Accept Cookies
       const cookieBtn = await page.$('#onetrust-accept-btn-handler, #btn-accept');
       if (cookieBtn) await page.evaluate(el => el.click(), cookieBtn);
