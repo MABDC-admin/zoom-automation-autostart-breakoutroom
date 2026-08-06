@@ -232,29 +232,24 @@ async function promoteStaffToCoHost(page, targetName) {
 
   // Find user and click "More"
   const result = await page.evaluate((name) => {
-    function getParentRow(element) {
-      let parent = element.parentElement;
-      while (parent) {
-        if (parent.tagName === 'LI' || parent.tagName === 'TR' || parent.getAttribute('role') === 'listitem' || parent.className.includes('participant')) {
-          return parent;
-        }
-        parent = parent.parentElement;
-      }
-      return element.parentElement || element;
-    }
-
-    const allElements = Array.from(document.querySelectorAll('span, div, p, li'));
+    const nameLower = name.toLowerCase();
+    const candidates = Array.from(document.querySelectorAll('.participants-item, li, tr, .participant-list-item, div'));
     let targetRow = null;
-    for (const el of allElements) {
-      if (el.childNodes.length === 1 && el.childNodes[0].nodeType === 3) {
-        const text = el.innerText || el.textContent || '';
-        if (text.toLowerCase().includes(name.toLowerCase())) {
-          const row = getParentRow(el);
-          const rowText = row.innerText || row.textContent || '';
-          // Skip if already Host, Co-host, or Self
-          if (rowText.includes('(Host') || rowText.includes('(Co-host') || rowText.includes('Co-host') || rowText.includes('Host, me')) {
-            continue;
-          }
+
+    for (const row of candidates) {
+      const rowText = row.innerText || row.textContent || '';
+      const rowTextLower = rowText.toLowerCase();
+
+      // Check if this row contains the name we are looking for
+      if (rowTextLower.includes(nameLower)) {
+        // Skip if already Host, Co-host, or Self
+        if (rowText.includes('(Host') || rowText.includes('(Co-host') || rowText.includes('Co-host') || rowText.includes('Host, me')) {
+          continue;
+        }
+
+        // Check if this contains buttons (ensures it is a participant row, not a header/container)
+        const rowButtons = row.querySelectorAll('button, [role="button"]');
+        if (rowButtons.length > 0) {
           targetRow = row;
           break;
         }
