@@ -232,8 +232,19 @@ async function promoteStaffToCoHost(page, targetName) {
 
   // Find user and click "More"
   const result = await page.evaluate((name) => {
+    function querySelectorAllShadow(selector, root = document) {
+      const elements = Array.from(root.querySelectorAll(selector));
+      const children = Array.from(root.querySelectorAll('*'));
+      for (const child of children) {
+        if (child.shadowRoot) {
+          elements.push(...querySelectorAllShadow(selector, child.shadowRoot));
+        }
+      }
+      return elements;
+    }
+
     const nameLower = name.toLowerCase();
-    const candidates = Array.from(document.querySelectorAll('.participants-item, li, tr, .participant-list-item, div'));
+    const candidates = querySelectorAllShadow('.participants-item, li, tr, .participant-list-item, div');
     let targetRow = null;
 
     for (const row of candidates) {
@@ -287,7 +298,18 @@ async function promoteStaffToCoHost(page, targetName) {
 
     // Click "Make Co-host"
     const clickedCoHost = await page.evaluate(() => {
-      const items = Array.from(document.querySelectorAll('button, a, [role="menuitem"], span, div'));
+      function querySelectorAllShadow(selector, root = document) {
+        const elements = Array.from(root.querySelectorAll(selector));
+        const children = Array.from(root.querySelectorAll('*'));
+        for (const child of children) {
+          if (child.shadowRoot) {
+            elements.push(...querySelectorAllShadow(selector, child.shadowRoot));
+          }
+        }
+        return elements;
+      }
+
+      const items = querySelectorAllShadow('button, a, [role="menuitem"], span, div');
       for (const item of items) {
         const text = item.innerText || item.textContent || '';
         if (text.toLowerCase().includes('make co-host') || text.toLowerCase().includes('make cohost')) {
@@ -303,7 +325,18 @@ async function promoteStaffToCoHost(page, targetName) {
       await new Promise(r => setTimeout(r, 800));
 
       const confirmed = await page.evaluate(() => {
-        const modalButtons = Array.from(document.querySelectorAll('button, .zm-btn, .wc-btn-primary'));
+        function querySelectorAllShadow(selector, root = document) {
+          const elements = Array.from(root.querySelectorAll(selector));
+          const children = Array.from(root.querySelectorAll('*'));
+          for (const child of children) {
+            if (child.shadowRoot) {
+              elements.push(...querySelectorAllShadow(selector, child.shadowRoot));
+            }
+          }
+          return elements;
+        }
+
+        const modalButtons = querySelectorAllShadow('button, .zm-btn, .wc-btn-primary');
         for (const btn of modalButtons) {
           const text = btn.innerText || btn.textContent || '';
           if (text.toLowerCase() === 'make co-host' || text.toLowerCase() === 'co-host' || text.toLowerCase() === 'yes') {
