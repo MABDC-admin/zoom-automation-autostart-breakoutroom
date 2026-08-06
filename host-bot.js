@@ -204,14 +204,24 @@ export async function launchHostBot() {
  */
 async function ensureParticipantsPanelOpen(page) {
   const isOpen = await page.evaluate(() => {
-    const btn = document.querySelector('button[aria-label*="participants"], button[aria-label*="Participants"]');
-    if (btn) {
-      const ariaLabel = btn.getAttribute('aria-label') || '';
-      if (ariaLabel.toLowerCase().includes('close the')) {
+    function querySelectorAllShadow(selector, root = document) {
+      const elements = Array.from(root.querySelectorAll(selector));
+      const children = Array.from(root.querySelectorAll('*'));
+      for (const child of children) {
+        if (child.shadowRoot) {
+          elements.push(...querySelectorAllShadow(selector, child.shadowRoot));
+        }
+      }
+      return elements;
+    }
+
+    const containers = querySelectorAllShadow('.participants-list-container, .participants-section-container, .participants-wrap');
+    for (const container of containers) {
+      if (container.getBoundingClientRect().width > 0) {
         return true;
       }
     }
-    return !!document.querySelector('.participants-list-container, .participants-section-container');
+    return false;
   });
 
   if (!isOpen) {
