@@ -72,7 +72,7 @@ async function checkAndRevive() {
     console.log('🚨 [WATCHDOG ALERT] Meeting is OFFLINE! Starting new meeting session...');
     try {
       if (process.platform === 'linux') {
-        execSync('pkill -f chromium || true');
+        try { execSync('pkill -f chromium'); } catch (e) {}
       }
       await triggerMeetingStart();
       console.log('🎉 [WATCHDOG SUCCESS] Meeting session and bots started successfully!');
@@ -83,7 +83,7 @@ async function checkAndRevive() {
     console.log('🚨 [WATCHDOG ALERT] Meeting is active, but Host Bot is OFFLINE! Restarting Host Bot...');
     try {
       if (process.platform === 'linux') {
-        execSync('pkill -f chromium || true');
+        try { execSync('pkill -f chromium'); } catch (e) {}
       }
       await launchHostBot();
       console.log('🎉 [WATCHDOG SUCCESS] Host Bot revived successfully!');
