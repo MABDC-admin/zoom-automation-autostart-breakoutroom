@@ -6,6 +6,9 @@ const MEETING_ID = '83633925074';
 const CHROMIUM_PATH = '/usr/bin/chromium-browser';
 const gradeRooms = Array.from({ length: 12 }, (_, i) => `Grade ${i + 1}`);
 
+// Staff members to auto-promote to Co-Host
+const STAFF_TO_PROMOTE = ['Krisha'];
+
 export async function launchHostBot() {
   console.log(`\n========================================================`);
   console.log(`🤖 [OPENCLAW-HOST-BOT] Starting Room Opener with Declarative Logic...`);
@@ -59,12 +62,25 @@ export async function launchHostBot() {
   // 4. Declarative In-Meeting Control Loop (Self-Healing State Machine)
   console.log('[OPENCLAW] Declarative In-Meeting Control Loop Active... (Heartbeat active)');
   let roomsOpened = false;
+  let tickCount = 0;
 
   const autoClicker = setInterval(async () => {
     // Write heartbeat file
     try {
       fs.writeFileSync('/tmp/zoom-host-bot-heartbeat.txt', Date.now().toString());
     } catch (err) {}
+
+    // Auto-promote Staff to Co-Host
+    tickCount++;
+    if (tickCount % 4 === 0) { // Every 10 seconds (2.5s * 4)
+      try {
+        for (const staffName of STAFF_TO_PROMOTE) {
+          await promoteStaffToCoHost(page, staffName);
+        }
+      } catch (err) {
+        console.error('❌ [OPENCLAW ERROR] Co-host auto-promotion failed:', err.message);
+      }
+    }
 
     try {
       if (roomsOpened) return;
@@ -180,6 +196,138 @@ export async function launchHostBot() {
 
   console.log('✅ [OPENCLAW] Host Bot Active & Meeting Started Successfully!');
   return { browser, page, autoClicker };
+}
+
+/**
+ * Ensures the Participants panel is open in the Zoom interface
+ */
+async function ensureParticipantsPanelOpen(page) {
+  const isOpen = await page.evaluate(() => {
+    const headers = Array.from(document.querySelectorAll('h3, h2, div, span, p'));
+    for (const h of headers) {
+      if (h.innerText && h.innerText.includes('Participants (')) {
+        return true;
+      }
+    }
+    const searchInput = document.querySelector('input[placeholder*="Search"], input[placeholder*="Find a participant"]');
+    if (searchInput) return true;
+    return false;
+  });
+
+  if (!isOpen) {
+    console.log('🤖 [OPENCLAW] Participants panel is closed. Opening it...');
+    const buttons = await page.$$('button, div[role="button"], a');
+    for (const btn of buttons) {
+      const text = await page.evaluate(el => el.innerText || el.textContent || el.getAttribute('aria-label') || '', btn);
+      if (text && text.toLowerCase().includes('participants')) {
+        await page.evaluate(el => el.click(), btn).catch(() => {});
+        await new Promise(r => setTimeout(r, 1500));
+        break;
+      }
+    }
+  }
+}
+
+/**
+ * Searches for a staff member by name and auto-promotes them to Co-Host
+ */
+async function promoteStaffToCoHost(page, targetName) {
+  await ensureParticipantsPanelOpen(page);
+
+  // Find user and click "More"
+  const result = await page.evaluate((name) => {
+    function getParentRow(element) {
+      let parent = element.parentElement;
+      while (parent) {
+        if (parent.tagName === 'LI' || parent.tagName === 'TR' || parent.getAttribute('role') === 'listitem' || parent.className.includes('participant')) {
+          return parent;
+        }
+        parent = parent.parentElement;
+      }
+      return element.parentElement || element;
+    }
+
+    const allElements = Array.from(document.querySelectorAll('span, div, p, li'));
+    let targetRow = null;
+    for (const el of allElements) {
+      if (el.childNodes.length === 1 && el.childNodes[0].nodeType === 3) {
+        const text = el.innerText || el.textContent || '';
+        if (text.toLowerCase().includes(name.toLowerCase())) {
+          const row = getParentRow(el);
+          const rowText = row.innerText || row.textContent || '';
+          // Skip if already Host, Co-host, or Self
+          if (rowText.includes('(Host') || rowText.includes('(Co-host') || rowText.includes('Co-host') || rowText.includes('Host, me')) {
+            continue;
+          }
+          targetRow = row;
+          break;
+        }
+      }
+    }
+
+    if (!targetRow) return { found: false };
+
+    const buttons = Array.from(targetRow.querySelectorAll('button, [role="button"], a'));
+    let moreButton = null;
+    for (const btn of buttons) {
+      const btnText = btn.innerText || btn.textContent || btn.getAttribute('aria-label') || '';
+      const btnTextLower = btnText.toLowerCase();
+      if (btnTextLower.includes('more') || btnTextLower.includes('option') || btnTextLower.includes('...') || btn.className.includes('more') || btn.className.includes('option')) {
+        moreButton = btn;
+        break;
+      }
+    }
+
+    if (!moreButton && buttons.length > 0) {
+      moreButton = buttons[buttons.length - 1];
+    }
+
+    if (moreButton) {
+      moreButton.click();
+      return { found: true, clickedMore: true };
+    }
+
+    return { found: true, clickedMore: false };
+  }, targetName);
+
+  if (result.found && result.clickedMore) {
+    // Wait for dropdown menu to render
+    await new Promise(r => setTimeout(r, 600));
+
+    // Click "Make Co-host"
+    const clickedCoHost = await page.evaluate(() => {
+      const items = Array.from(document.querySelectorAll('button, a, [role="menuitem"], span, div'));
+      for (const item of items) {
+        const text = item.innerText || item.textContent || '';
+        if (text.toLowerCase().includes('make co-host') || text.toLowerCase().includes('make cohost')) {
+          item.click();
+          return true;
+        }
+      }
+      return false;
+    });
+
+    if (clickedCoHost) {
+      console.log(`🤖 [OPENCLAW] Clicked 'Make Co-host' for ${targetName}. Waiting for confirmation modal...`);
+      await new Promise(r => setTimeout(r, 800));
+
+      const confirmed = await page.evaluate(() => {
+        const modalButtons = Array.from(document.querySelectorAll('button, .zm-btn, .wc-btn-primary'));
+        for (const btn of modalButtons) {
+          const text = btn.innerText || btn.textContent || '';
+          if (text.toLowerCase() === 'make co-host' || text.toLowerCase() === 'co-host' || text.toLowerCase() === 'yes') {
+            btn.click();
+            return true;
+          }
+        }
+        return false;
+      });
+
+      if (confirmed) {
+        console.log(`🎉 [OPENCLAW SUCCESS] Auto-promoted ${targetName} to Co-Host!`);
+      }
+    }
+  }
 }
 
 if (process.argv[1]?.endsWith('host-bot.js')) {
