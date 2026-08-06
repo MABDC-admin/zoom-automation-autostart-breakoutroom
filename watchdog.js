@@ -1,6 +1,8 @@
 import { getMeetingDetails } from './zoom-cli.js';
 import { triggerMeetingStart } from './auto-scheduler.js';
+import { launchHostBot } from './host-bot.js';
 import { execSync } from 'child_process';
+import fs from 'fs';
 
 const MEETING_ID = '83633925074';
 
@@ -44,7 +46,6 @@ async function checkAndRevive() {
   let isMeetingActive = false;
   try {
     const details = await getMeetingDetails(MEETING_ID);
-    // If the meeting is active, it will return details without error, and should have a status
     if (details && details.status !== 'inactive') {
       isMeetingActive = true;
     }
@@ -52,30 +53,42 @@ async function checkAndRevive() {
     console.log('⚠️ [WATCHDOG] Failed to fetch meeting details (meeting might be offline):', err.message);
   }
 
-  // Check if Puppeteer/Chromium processes are running on the server
-  let isBrowserRunning = false;
-  if (process.platform === 'linux') {
-    try {
-      const psOutput = execSync('ps aux | grep chromium | grep -v grep || true').toString();
-      if (psOutput.includes('chromium-browser') || psOutput.includes('chrome')) {
-        isBrowserRunning = true;
+  // Check if Host Bot heartbeat is active
+  let isBotRunning = false;
+  const heartbeatPath = '/tmp/zoom-host-bot-heartbeat.txt';
+  try {
+    if (fs.existsSync(heartbeatPath)) {
+      const content = fs.readFileSync(heartbeatPath, 'utf8');
+      const lastHeartbeat = parseInt(content.trim(), 10);
+      if (!isNaN(lastHeartbeat) && Date.now() - lastHeartbeat < 45000) {
+        isBotRunning = true;
       }
-    } catch (e) {}
-  } else {
-    // Windows dev testing fallback
-    isBrowserRunning = true;
-  }
+    }
+  } catch (e) {}
 
-  console.log(`📊 [WATCHDOG STATUS] Meeting Active: ${isMeetingActive} | Bots Running: ${isBrowserRunning}`);
+  console.log(`📊 [WATCHDOG STATUS] Meeting Active: ${isMeetingActive} | Bot Heartbeat Alive: ${isBotRunning}`);
 
-  if (!isMeetingActive || !isBrowserRunning) {
-    console.log('🚨 [WATCHDOG ALERT] Meeting or Bots are OFFLINE! Auto-reviving meeting session now...');
+  if (!isMeetingActive) {
+    console.log('🚨 [WATCHDOG ALERT] Meeting is OFFLINE! Starting new meeting session...');
     try {
-      // Trigger a clean restart
+      if (process.platform === 'linux') {
+        execSync('pkill -f chromium || true');
+      }
       await triggerMeetingStart();
-      console.log('🎉 [WATCHDOG SUCCESS] Meeting session and bots revived successfully!');
-    } catch (reviveErr) {
-      console.error('❌ [WATCHDOG ERROR] Failed to revive meeting:', reviveErr.message);
+      console.log('🎉 [WATCHDOG SUCCESS] Meeting session and bots started successfully!');
+    } catch (err) {
+      console.error('❌ [WATCHDOG ERROR] Failed to start meeting:', err.message);
+    }
+  } else if (!isBotRunning) {
+    console.log('🚨 [WATCHDOG ALERT] Meeting is active, but Host Bot is OFFLINE! Restarting Host Bot...');
+    try {
+      if (process.platform === 'linux') {
+        execSync('pkill -f chromium || true');
+      }
+      await launchHostBot();
+      console.log('🎉 [WATCHDOG SUCCESS] Host Bot revived successfully!');
+    } catch (err) {
+      console.error('❌ [WATCHDOG ERROR] Failed to revive Host Bot:', err.message);
     }
   } else {
     console.log('✅ [WATCHDOG] Everything is healthy. Meeting and bots are running.');
