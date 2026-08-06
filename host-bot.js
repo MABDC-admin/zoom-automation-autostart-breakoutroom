@@ -240,8 +240,8 @@ async function ensureParticipantsPanelOpen(page) {
 async function promoteStaffToCoHost(page, targetName) {
   await ensureParticipantsPanelOpen(page);
 
-  // Find user and click "More"
-  const result = await page.evaluate((name) => {
+  // Find user, hover to reveal buttons, and click "More"
+  const result = await page.evaluate(async (name) => {
     function querySelectorAllShadow(selector, root = document) {
       const elements = Array.from(root.querySelectorAll(selector));
       const children = Array.from(root.querySelectorAll('*'));
@@ -267,17 +267,19 @@ async function promoteStaffToCoHost(page, targetName) {
         if (rowText.includes('(Host') || rowText.includes('(Co-host') || rowText.includes('Co-host') || rowText.includes('Host, me')) {
           continue;
         }
-
-        // Check if this contains buttons (ensures it is a participant row, not a header/container)
-        const rowButtons = row.querySelectorAll('button, [role="button"]');
-        if (rowButtons.length > 0) {
-          targetRow = row;
-          break;
-        }
+        targetRow = row;
+        break;
       }
     }
 
     if (!targetRow) return { found: false };
+
+    // Trigger hover events to reveal buttons in the DOM
+    targetRow.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    targetRow.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+
+    // Wait 400ms for React to render buttons
+    await new Promise(r => setTimeout(r, 400));
 
     const buttons = Array.from(targetRow.querySelectorAll('button, [role="button"], a'));
     let moreButton = null;
