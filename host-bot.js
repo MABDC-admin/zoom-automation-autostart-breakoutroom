@@ -63,6 +63,7 @@ export async function launchHostBot() {
   console.log('[OPENCLAW] Declarative In-Meeting Control Loop Active... (Heartbeat active)');
   let roomsOpened = false;
   let tickCount = 0;
+  const alreadyPromoted = new Set();
 
   const autoClicker = setInterval(async () => {
     // Write heartbeat file
@@ -70,9 +71,19 @@ export async function launchHostBot() {
       fs.writeFileSync('/tmp/zoom-host-bot-heartbeat.txt', Date.now().toString());
     } catch (err) {}
 
-    // Auto-promote Staff to Co-Host
     tickCount++;
-    if (tickCount % 4 === 0) { // Every 10 seconds (2.5s * 4)
+
+    // Scan Chat for co-host requests (every 5 seconds)
+    if (tickCount % 2 === 0) {
+      try {
+        await checkChatAndPromote(page, alreadyPromoted);
+      } catch (err) {
+        console.error('❌ [OPENCLAW ERROR] Chat co-host trigger check failed:', err.message);
+      }
+    }
+
+    // Auto-promote Staff from config (every 10 seconds)
+    if (tickCount % 4 === 0) {
       try {
         for (const staffName of STAFF_TO_PROMOTE) {
           await promoteStaffToCoHost(page, staffName);
@@ -363,6 +374,130 @@ async function promoteStaffToCoHost(page, targetName) {
         console.log(`🎉 [OPENCLAW SUCCESS] Auto-promoted ${targetName} to Co-Host!`);
       }
     }
+  }
+}
+
+/**
+ * Automatically opens the Zoom chat panel if it is currently closed
+ */
+async function ensureChatPanelOpen(page) {
+  const isOpen = await page.evaluate(() => {
+    function querySelectorAllShadow(selector, root = document) {
+      const elements = Array.from(root.querySelectorAll(selector));
+      const children = Array.from(root.querySelectorAll('*'));
+      for (const child of children) {
+        if (child.shadowRoot) {
+          elements.push(...querySelectorAllShadow(selector, child.shadowRoot));
+        }
+      }
+      return elements;
+    }
+
+    const containers = querySelectorAllShadow('.chat-container, .chat-wrap, .chat-box, #chat-list-content, .chat-content');
+    for (const container of containers) {
+      if (container.getBoundingClientRect().width > 0) {
+        return true;
+      }
+    }
+    return false;
+  });
+
+  if (!isOpen) {
+    console.log('🤖 [OPENCLAW] Chat panel is closed. Opening it...');
+    const btn = await page.$('button[aria-label*="chat"], button[aria-label*="Chat"]');
+    if (btn) {
+      await page.evaluate(el => el.click(), btn).catch(() => {});
+      await new Promise(r => setTimeout(r, 1500));
+    }
+  }
+}
+
+/**
+ * Returns a list of all active participant names inside the meeting
+ */
+async function getParticipantNames(page) {
+  return await page.evaluate(() => {
+    function querySelectorAllShadow(selector, root = document) {
+      const elements = Array.from(root.querySelectorAll(selector));
+      const children = Array.from(root.querySelectorAll('*'));
+      for (const child of children) {
+        if (child.shadowRoot) {
+          elements.push(...querySelectorAllShadow(selector, child.shadowRoot));
+        }
+      }
+      return elements;
+    }
+
+    const nameElements = querySelectorAllShadow('.participants-item__display-name');
+    return nameElements.map(el => el.innerText || el.textContent || '').filter(name => name.trim().length > 0);
+  });
+}
+
+/**
+ * Scans chat messages for the co-host request keyword, resolves senders, and promotes them
+ */
+async function checkChatAndPromote(page, alreadyPromoted) {
+  await ensureChatPanelOpen(page);
+
+  const participantNames = await getParticipantNames(page);
+  if (participantNames.length === 0) return;
+
+  const promotionsToRun = await page.evaluate((names) => {
+    function querySelectorAllShadow(selector, root = document) {
+      const elements = Array.from(root.querySelectorAll(selector));
+      const children = Array.from(root.querySelectorAll('*'));
+      for (const child of children) {
+        if (child.shadowRoot) {
+          elements.push(...querySelectorAllShadow(selector, child.shadowRoot));
+        }
+      }
+      return elements;
+    }
+
+    const toPromote = [];
+    const allElements = querySelectorAllShadow('*');
+
+    for (const el of allElements) {
+      const children = Array.from(el.querySelectorAll('*'));
+      if (children.length === 0) {
+        const text = el.innerText || el.textContent || '';
+        const textLower = text.toLowerCase();
+
+        if (textLower.includes('co-host') || textLower.includes('cohost')) {
+          let parent = el.parentElement;
+          let depth = 0;
+          let matchedSender = null;
+
+          while (parent && depth < 4) {
+            const parentText = parent.innerText || parent.textContent || '';
+            for (const name of names) {
+              if (parentText.includes(name)) {
+                matchedSender = name;
+                break;
+              }
+            }
+            if (matchedSender) break;
+            parent = parent.parentElement;
+            depth++;
+          }
+
+          if (matchedSender && !toPromote.includes(matchedSender)) {
+            toPromote.push(matchedSender);
+          }
+        }
+      }
+    }
+
+    return toPromote;
+  }, participantNames);
+
+  for (const sender of promotionsToRun) {
+    if (alreadyPromoted.has(sender)) continue;
+    if (sender.toLowerCase().includes('host') || sender.toLowerCase().includes('mabdc')) continue;
+
+    console.log(`🤖 [OPENCLAW] Chat trigger detected: "${sender}" requested co-host. Auto-promoting...`);
+    await promoteStaffToCoHost(page, sender);
+    alreadyPromoted.add(sender);
   }
 }
 
