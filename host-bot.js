@@ -100,11 +100,12 @@ export async function launchHostBot() {
       const cookieBtn = await page.$('#onetrust-accept-btn-handler, #btn-accept');
       if (cookieBtn) await page.evaluate(el => el.click(), cookieBtn);
 
-      // Click "Join Audio by Computer" / "Got It" / "Start Meeting"
+      // Click "Join Audio by Computer" / "Got It" / "Start Meeting" / "Reclaim Host"
       const buttons = await page.$$('button, .zm-btn, .wc-btn-primary, a');
       for (const btn of buttons) {
         const text = await page.evaluate(el => el.innerText || el.textContent, btn);
-        if (text && (text.includes('Join Audio') || text.includes('Computer Audio') || text.includes('Start') || text.includes('Got It') || text.includes('Agree'))) {
+        if (text && (text.includes('Join Audio') || text.includes('Computer Audio') || text.includes('Start') || text.includes('Got It') || text.includes('Agree') || text.includes('Reclaim') || text.includes('Claim'))) {
+          console.log(`🤖 [OPENCLAW] Dialog/Button match found: "${text.trim()}". Clicking...`);
           await page.evaluate(el => el.click(), btn).catch(() => {});
         }
       }
@@ -203,27 +204,22 @@ export async function launchHostBot() {
  */
 async function ensureParticipantsPanelOpen(page) {
   const isOpen = await page.evaluate(() => {
-    const headers = Array.from(document.querySelectorAll('h3, h2, div, span, p'));
-    for (const h of headers) {
-      if (h.innerText && h.innerText.includes('Participants (')) {
+    const btn = document.querySelector('button[aria-label*="participants"], button[aria-label*="Participants"]');
+    if (btn) {
+      const ariaLabel = btn.getAttribute('aria-label') || '';
+      if (ariaLabel.toLowerCase().includes('close the')) {
         return true;
       }
     }
-    const searchInput = document.querySelector('input[placeholder*="Search"], input[placeholder*="Find a participant"]');
-    if (searchInput) return true;
-    return false;
+    return !!document.querySelector('.participants-list-container, .participants-section-container');
   });
 
   if (!isOpen) {
     console.log('🤖 [OPENCLAW] Participants panel is closed. Opening it...');
-    const buttons = await page.$$('button, div[role="button"], a');
-    for (const btn of buttons) {
-      const text = await page.evaluate(el => el.innerText || el.textContent || el.getAttribute('aria-label') || '', btn);
-      if (text && text.toLowerCase().includes('participants')) {
-        await page.evaluate(el => el.click(), btn).catch(() => {});
-        await new Promise(r => setTimeout(r, 1500));
-        break;
-      }
+    const btn = await page.$('button[aria-label*="participants"], button[aria-label*="Participants"]');
+    if (btn) {
+      await page.evaluate(el => el.click(), btn).catch(() => {});
+      await new Promise(r => setTimeout(r, 1500));
     }
   }
 }
