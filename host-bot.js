@@ -249,6 +249,7 @@ async function ensureParticipantsPanelOpen(page) {
  * Searches for a staff member by name and auto-promotes them to Co-Host
  */
 async function promoteStaffToCoHost(page, targetName) {
+  console.log(`🤖 [OPENCLAW] Auto-promotion check triggered for: "${targetName}"`);
   await ensureParticipantsPanelOpen(page);
 
   // Find user, hover to reveal buttons, and click "More"
@@ -265,25 +266,30 @@ async function promoteStaffToCoHost(page, targetName) {
     }
 
     const nameLower = name.toLowerCase();
-    const candidates = querySelectorAllShadow('.participants-item, li, tr, .participant-list-item, div');
+    const candidates = querySelectorAllShadow('.participants-item__item-layout, .participants-item, li, tr, .participant-list-item, div');
     let targetRow = null;
 
     for (const row of candidates) {
-      const rowText = row.innerText || row.textContent || '';
-      const rowTextLower = rowText.toLowerCase();
+      const nameSpan = row.querySelector && row.querySelector('.participants-item__display-name');
+      if (nameSpan) {
+        const rowText = nameSpan.innerText || nameSpan.textContent || '';
+        const rowTextLower = rowText.toLowerCase();
 
-      // Check if this row contains the name we are looking for
-      if (rowTextLower.includes(nameLower)) {
-        // Skip if already Host, Co-host, or Self
-        if (rowText.includes('(Host') || rowText.includes('(Co-host') || rowText.includes('Co-host') || rowText.includes('Host, me')) {
-          continue;
+        if (rowTextLower.includes(nameLower)) {
+          const parentRow = nameSpan.closest('.participants-item__item-layout, li, div');
+          const parentText = parentRow ? (parentRow.innerText || parentRow.textContent || '') : '';
+          
+          if (parentText.includes('(Host') || parentText.includes('(Co-host') || parentText.includes('Co-host') || parentText.includes('Host, me')) {
+            return { status: 'already_promoted', text: parentText };
+          }
+
+          targetRow = parentRow || row;
+          break;
         }
-        targetRow = row;
-        break;
       }
     }
 
-    if (!targetRow) return { found: false };
+    if (!targetRow) return { status: 'user_not_found' };
 
     // Trigger hover events to reveal buttons in the DOM
     targetRow.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
@@ -309,15 +315,17 @@ async function promoteStaffToCoHost(page, targetName) {
 
     if (moreButton) {
       moreButton.click();
-      return { found: true, clickedMore: true };
+      return { status: 'clicked_more' };
     }
 
-    return { found: true, clickedMore: false };
+    return { status: 'more_button_not_found', buttonCount: buttons.length };
   }, targetName);
 
-  if (result.found && result.clickedMore) {
+  console.log(`🤖 [OPENCLAW] Step 1 result for ${targetName}: ${result.status}`, result.text || '');
+
+  if (result.status === 'clicked_more') {
     // Wait for dropdown menu to render
-    await new Promise(r => setTimeout(r, 600));
+    await new Promise(r => setTimeout(r, 800));
 
     // Click "Make Co-host"
     const clickedCoHost = await page.evaluate(() => {
@@ -345,7 +353,7 @@ async function promoteStaffToCoHost(page, targetName) {
 
     if (clickedCoHost) {
       console.log(`🤖 [OPENCLAW] Clicked 'Make Co-host' for ${targetName}. Waiting for confirmation modal...`);
-      await new Promise(r => setTimeout(r, 800));
+      await new Promise(r => setTimeout(r, 1000));
 
       const confirmed = await page.evaluate(() => {
         function querySelectorAllShadow(selector, root = document) {
@@ -372,7 +380,11 @@ async function promoteStaffToCoHost(page, targetName) {
 
       if (confirmed) {
         console.log(`🎉 [OPENCLAW SUCCESS] Auto-promoted ${targetName} to Co-Host!`);
+      } else {
+        console.log(`❌ [OPENCLAW ERROR] Failed to click confirmation button for ${targetName}`);
       }
+    } else {
+      console.log(`❌ [OPENCLAW ERROR] 'Make Co-host' option not found in dropdown for ${targetName}`);
     }
   }
 }
