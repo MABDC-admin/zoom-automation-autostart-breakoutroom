@@ -17,7 +17,7 @@ try {
 } catch (e) {}
 
 function sendTelegramMessage(chatId, text) {
-  const data = JSON.stringify({ chat_id: chatId, text: text });
+  const data = JSON.stringify({ chat_id: chatId, text: text, parse_mode: 'Markdown' });
   const options = {
     hostname: 'api.telegram.org',
     port: 443,
@@ -25,11 +25,15 @@ function sendTelegramMessage(chatId, text) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Content-Length': data.length
+      'Content-Length': Buffer.byteLength(data)
     }
   };
   const req = https.request(options, (res) => {
-    res.on('data', () => {});
+    let resp = '';
+    res.on('data', (c) => resp += c);
+    res.on('end', () => {
+      console.log(`🤖 Telegram API response for Chat ${chatId}:`, resp);
+    });
   });
   req.on('error', (err) => console.error('Telegram send error:', err.message));
   req.write(data);
@@ -85,6 +89,7 @@ function sendTelegramPhoto(chatId, photoPath, caption) {
 async function handleIncomingMessage(msg) {
   const chatId = msg.chat.id;
   const text = msg.text ? msg.text.trim() : '';
+  console.log(`📩 Received Telegram message from Chat ${chatId}: "${text}"`);
 
   // Register Chat ID
   if (!savedChatId || savedChatId !== String(chatId)) {
