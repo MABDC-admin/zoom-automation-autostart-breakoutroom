@@ -364,7 +364,7 @@ async function promoteStaffToCoHost(page, targetName) {
         return elements;
       }
 
-      const items = querySelectorAllShadow('button, a, [role="menuitem"], span, div');
+      const items = querySelectorAllShadow('button, a, [role="menuitem"]');
       for (const item of items) {
         const text = item.innerText || item.textContent || '';
         if (text.toLowerCase().includes('make co-host') || text.toLowerCase().includes('make cohost')) {
@@ -406,10 +406,10 @@ async function promoteStaffToCoHost(page, targetName) {
           return elements;
         }
 
-        const modalButtons = querySelectorAllShadow('button, .zm-btn, .wc-btn-primary, div, span');
+        const modalButtons = querySelectorAllShadow('button, a, [role="button"], .zm-btn, .wc-btn-primary');
         for (const btn of modalButtons) {
           const text = btn.innerText || btn.textContent || '';
-          if (text.toLowerCase().trim() === 'make co-host' || text.toLowerCase().trim() === 'co-host' || text.toLowerCase().trim() === 'yes') {
+          if (text.toLowerCase().trim() === 'yes' || text.toLowerCase().trim() === 'co-host') {
             if (btn.getBoundingClientRect().width > 0) {
               return btn;
             }
