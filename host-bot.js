@@ -378,8 +378,12 @@ async function promoteStaffToCoHost(page, targetName) {
 
     const optionEl = coHostOption.asElement();
     if (optionEl) {
-      console.log(`🤖 [OPENCLAW] Found 'Make Co-host' option. Clicking natively...`);
-      await optionEl.click();
+      console.log(`🤖 [OPENCLAW] Found 'Make Co-host' option. Clicking via MouseEvent dispatch...`);
+      await page.evaluate(el => {
+        el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
+        el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
+        el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+      }, optionEl);
       
       // Wait for modal to render
       await new Promise(r => setTimeout(r, 1000));
@@ -397,10 +401,10 @@ async function promoteStaffToCoHost(page, targetName) {
           return elements;
         }
 
-        const modalButtons = querySelectorAllShadow('button, .zm-btn, .wc-btn-primary');
+        const modalButtons = querySelectorAllShadow('button, .zm-btn, .wc-btn-primary, div, span');
         for (const btn of modalButtons) {
           const text = btn.innerText || btn.textContent || '';
-          if (text.toLowerCase() === 'make co-host' || text.toLowerCase() === 'co-host' || text.toLowerCase() === 'yes') {
+          if (text.toLowerCase().trim() === 'make co-host' || text.toLowerCase().trim() === 'co-host' || text.toLowerCase().trim() === 'yes') {
             if (btn.getBoundingClientRect().width > 0) {
               return btn;
             }
@@ -411,9 +415,13 @@ async function promoteStaffToCoHost(page, targetName) {
 
       const yesEl = yesButton.asElement();
       if (yesEl) {
-        console.log(`🤖 [OPENCLAW] Found 'Yes' confirmation button. Clicking natively...`);
-        await yesEl.click();
-        await new Promise(r => setTimeout(r, 1000));
+        console.log(`🤖 [OPENCLAW] Found 'Yes' confirmation button. Clicking via MouseEvent dispatch...`);
+        await page.evaluate(el => {
+          el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
+          el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
+          el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+        }, yesEl);
+        await new Promise(r => setTimeout(r, 1500));
         console.log(`🎉 [OPENCLAW SUCCESS] Auto-promoted ${targetName} to Co-Host natively!`);
         return true;
       } else {
