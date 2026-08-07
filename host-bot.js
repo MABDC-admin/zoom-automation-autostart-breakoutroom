@@ -86,7 +86,11 @@ export async function launchHostBot() {
     if (tickCount % 4 === 0) {
       try {
         for (const staffName of STAFF_TO_PROMOTE) {
-          await promoteStaffToCoHost(page, staffName);
+          if (alreadyPromoted.has(staffName)) continue;
+          const success = await promoteStaffToCoHost(page, staffName);
+          if (success) {
+            alreadyPromoted.add(staffName);
+          }
         }
       } catch (err) {
         console.error('❌ [OPENCLAW ERROR] Co-host auto-promotion failed:', err.message);
@@ -327,6 +331,10 @@ async function promoteStaffToCoHost(page, targetName) {
 
   console.log(`🤖 [OPENCLAW] Step 1 result for ${targetName}: ${result.status} | Buttons Count: ${result.buttonCount} | Buttons: [${result.buttonsText || ''}]`);
 
+  if (result.status === 'already_promoted') {
+    return true;
+  }
+
   if (result.status === 'clicked_more') {
     // Wait for dropdown menu to render
     await new Promise(r => setTimeout(r, 800));
@@ -348,8 +356,10 @@ async function promoteStaffToCoHost(page, targetName) {
       for (const item of items) {
         const text = item.innerText || item.textContent || '';
         if (text.toLowerCase().includes('make co-host') || text.toLowerCase().includes('make cohost')) {
-          item.click();
-          return true;
+          if (item.getBoundingClientRect().width > 0) {
+            item.click();
+            return true;
+          }
         }
       }
       return false;
@@ -375,8 +385,10 @@ async function promoteStaffToCoHost(page, targetName) {
         for (const btn of modalButtons) {
           const text = btn.innerText || btn.textContent || '';
           if (text.toLowerCase() === 'make co-host' || text.toLowerCase() === 'co-host' || text.toLowerCase() === 'yes') {
-            btn.click();
-            return true;
+            if (btn.getBoundingClientRect().width > 0) {
+              btn.click();
+              return true;
+            }
           }
         }
         return false;
@@ -384,6 +396,7 @@ async function promoteStaffToCoHost(page, targetName) {
 
       if (confirmed) {
         console.log(`🎉 [OPENCLAW SUCCESS] Auto-promoted ${targetName} to Co-Host!`);
+        return true;
       } else {
         console.log(`❌ [OPENCLAW ERROR] Failed to click confirmation button for ${targetName}`);
       }
@@ -391,6 +404,8 @@ async function promoteStaffToCoHost(page, targetName) {
       console.log(`❌ [OPENCLAW ERROR] 'Make Co-host' option not found in dropdown for ${targetName}`);
     }
   }
+
+  return false;
 }
 
 /**
