@@ -117,7 +117,13 @@ export async function launchHostBot() {
     // Auto-promote Staff from config (every 10 seconds)
     if (tickCount % 4 === 0) {
       try {
-        for (const staffName of STAFF_TO_PROMOTE) {
+        let staffList = [];
+        try {
+          staffList = JSON.parse(fs.readFileSync('/www/wwwroot/zoom-auto-starter/staff-names.json', 'utf8'));
+        } catch (e) {
+          staffList = STAFF_TO_PROMOTE;
+        }
+        for (const staffName of staffList) {
           await promoteStaffToCoHost(page, staffName);
         }
       } catch (err) {
