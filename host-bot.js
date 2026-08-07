@@ -378,7 +378,12 @@ async function promoteStaffToCoHost(page, targetName) {
 
     const optionEl = coHostOption.asElement();
     if (optionEl) {
-      console.log(`🤖 [OPENCLAW] Found 'Make Co-host' option. Clicking via MouseEvent dispatch...`);
+      const optTag = await (await coHostOption.getProperty('tagName')).jsonValue();
+      const optClass = await (await coHostOption.getProperty('className')).jsonValue();
+      const optHTML = await (await coHostOption.getProperty('outerHTML')).jsonValue();
+      console.log(`🤖 [OPENCLAW] Found dropdown option: Tag=${optTag}, Class=${optClass}, HTML=${optHTML.substring(0, 150)}`);
+
+      console.log(`🤖 [OPENCLAW] Clicking option via MouseEvent dispatch...`);
       await page.evaluate(el => {
         el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
         el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
@@ -415,7 +420,12 @@ async function promoteStaffToCoHost(page, targetName) {
 
       const yesEl = yesButton.asElement();
       if (yesEl) {
-        console.log(`🤖 [OPENCLAW] Found 'Yes' confirmation button. Clicking via MouseEvent dispatch...`);
+        const yesTag = await (await yesButton.getProperty('tagName')).jsonValue();
+        const yesClass = await (await yesButton.getProperty('className')).jsonValue();
+        const yesHTML = await (await yesButton.getProperty('outerHTML')).jsonValue();
+        console.log(`🤖 [OPENCLAW] Found 'Yes' button: Tag=${yesTag}, Class=${yesClass}, HTML=${yesHTML.substring(0, 150)}`);
+
+        console.log(`🤖 [OPENCLAW] Clicking 'Yes' via MouseEvent dispatch...`);
         await page.evaluate(el => {
           el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
           el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
