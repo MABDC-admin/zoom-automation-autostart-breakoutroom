@@ -351,8 +351,8 @@ async function promoteStaffToCoHost(page, targetName) {
     // Wait for dropdown menu to render
     await new Promise(r => setTimeout(r, 800));
 
-    // Click "Make Co-host"
-    const clickedCoHost = await page.evaluate(() => {
+    // Find and click "Make Co-host" natively
+    const coHostOption = await page.evaluateHandle(() => {
       function querySelectorAllShadow(selector, root = document) {
         const elements = Array.from(root.querySelectorAll(selector));
         const children = Array.from(root.querySelectorAll('*'));
@@ -369,19 +369,23 @@ async function promoteStaffToCoHost(page, targetName) {
         const text = item.innerText || item.textContent || '';
         if (text.toLowerCase().includes('make co-host') || text.toLowerCase().includes('make cohost')) {
           if (item.getBoundingClientRect().width > 0) {
-            item.click();
-            return true;
+            return item;
           }
         }
       }
-      return false;
+      return null;
     });
 
-    if (clickedCoHost) {
-      console.log(`🤖 [OPENCLAW] Clicked 'Make Co-host' for ${targetName}. Waiting for confirmation modal...`);
+    const optionEl = coHostOption.asElement();
+    if (optionEl) {
+      console.log(`🤖 [OPENCLAW] Found 'Make Co-host' option. Clicking natively...`);
+      await optionEl.click();
+      
+      // Wait for modal to render
       await new Promise(r => setTimeout(r, 1000));
 
-      const confirmed = await page.evaluate(() => {
+      // Find and click "Yes" button natively
+      const yesButton = await page.evaluateHandle(() => {
         function querySelectorAllShadow(selector, root = document) {
           const elements = Array.from(root.querySelectorAll(selector));
           const children = Array.from(root.querySelectorAll('*'));
@@ -398,22 +402,25 @@ async function promoteStaffToCoHost(page, targetName) {
           const text = btn.innerText || btn.textContent || '';
           if (text.toLowerCase() === 'make co-host' || text.toLowerCase() === 'co-host' || text.toLowerCase() === 'yes') {
             if (btn.getBoundingClientRect().width > 0) {
-              btn.click();
-              return true;
+              return btn;
             }
           }
         }
-        return false;
+        return null;
       });
 
-      if (confirmed) {
-        console.log(`🎉 [OPENCLAW SUCCESS] Auto-promoted ${targetName} to Co-Host!`);
+      const yesEl = yesButton.asElement();
+      if (yesEl) {
+        console.log(`🤖 [OPENCLAW] Found 'Yes' confirmation button. Clicking natively...`);
+        await yesEl.click();
+        await new Promise(r => setTimeout(r, 1000));
+        console.log(`🎉 [OPENCLAW SUCCESS] Auto-promoted ${targetName} to Co-Host natively!`);
         return true;
       } else {
-        console.log(`❌ [OPENCLAW ERROR] Failed to click confirmation button for ${targetName}`);
+        console.log(`❌ [OPENCLAW ERROR] Yes button not found in modal natively for ${targetName}`);
       }
     } else {
-      console.log(`❌ [OPENCLAW ERROR] 'Make Co-host' option not found in dropdown for ${targetName}`);
+      console.log(`❌ [OPENCLAW ERROR] 'Make Co-host' option not found in dropdown natively for ${targetName}`);
     }
   }
 
