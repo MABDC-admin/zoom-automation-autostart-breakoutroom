@@ -303,7 +303,7 @@ async function promoteStaffToCoHost(page, targetName) {
     for (const btn of buttons) {
       const btnText = btn.innerText || btn.textContent || btn.getAttribute('aria-label') || '';
       const btnTextLower = btnText.toLowerCase();
-      if (btnTextLower.includes('more') || btnTextLower.includes('option') || btnTextLower.includes('...') || btn.className.includes('more') || btn.className.includes('option')) {
+      if (btnTextLower.includes('more') || btnTextLower.includes('option') || btnTextLower.includes('...')) {
         moreButton = btn;
         break;
       }
