@@ -100,6 +100,36 @@ export async function launchHostBot() {
       fs.writeFileSync('/tmp/zoom-host-bot-heartbeat.txt', Date.now().toString());
     } catch (err) {}
 
+    // Export active participants for Telegram bot
+    try {
+      const activeNames = await page.evaluate(() => {
+        function querySelectorAllShadow(selector, root = document) {
+          const elements = Array.from(root.querySelectorAll(selector));
+          const children = Array.from(root.querySelectorAll('*'));
+          for (const child of children) {
+            if (child.shadowRoot) {
+              elements.push(...querySelectorAllShadow(selector, child.shadowRoot));
+            }
+          }
+          return elements;
+        }
+        const spans = querySelectorAllShadow('.participants-item__display-name');
+        return spans.map(s => {
+          const name = s.innerText || s.textContent || '';
+          const parentRow = s.closest('.participants-item__item-layout, .participants-item, .participants-item-position, li');
+          const parentText = parentRow ? (parentRow.innerText || parentRow.textContent || '') : '';
+          let role = 'Participant';
+          if (parentText.includes('(Host') || parentText.includes('Host, me')) {
+            role = 'Host';
+          } else if (parentText.includes('(Co-host') || parentText.includes('Co-host')) {
+            role = 'Co-Host';
+          }
+          return { name: name.trim(), role: role };
+        });
+      });
+      fs.writeFileSync('/tmp/zoom-active-participants.json', JSON.stringify(activeNames, null, 2));
+    } catch (e) {}
+
     // IPC Screenshot Trigger
     try {
       if (fs.existsSync('/tmp/trigger-screenshot.txt')) {

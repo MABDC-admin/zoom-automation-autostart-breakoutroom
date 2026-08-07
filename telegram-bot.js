@@ -104,10 +104,12 @@ async function handleIncomingMessage(msg) {
       `🤖 *Welcome to MABDC Zoom Meeting Controller Bot!*\n\n` +
       `Here are the available commands:\n` +
       `📌 */status* - Check Zoom bot process and meeting heartbeat.\n` +
+      `📌 */participants* - View all active meeting participants and their roles.\n` +
       `📌 */list* - View all configured staff names for auto-promotion.\n` +
       `📌 */add <Name>* - Add a staff member to the promotion list dynamically.\n` +
       `📌 */remove <Name>* - Remove a staff member from the promotion list.\n` +
       `📌 */screenshot* - Trigger and retrieve a live screenshot of the meeting.\n` +
+      `📌 */startmeeting* - Manually start the Zoom meeting with all automations.\n` +
       `📌 */restart* - Restart the Zoom meeting fresh.\n` +
       `📌 */end* - Terminate the active Zoom meeting.\n`;
     sendTelegramMessage(chatId, welcome);
@@ -241,6 +243,51 @@ async function handleIncomingMessage(msg) {
         sendTelegramMessage(chatId, '✅ Meeting ended successfully and browser closed.');
       }
     });
+    return;
+  }
+
+  if (text.startsWith('/startmeeting')) {
+    sendTelegramMessage(chatId, '▶ Starting Zoom meeting session dynamically... please wait.');
+    exec('cd /www/wwwroot/zoom-auto-starter && node auto-scheduler.js --start-now', (err, stdout, stderr) => {
+      if (err) {
+        sendTelegramMessage(chatId, `❌ Failed to start meeting: ${err.message}`);
+      } else {
+        sendTelegramMessage(chatId, '✅ Meeting started successfully! Host Bot is entering room.');
+      }
+    });
+    return;
+  }
+
+  if (text.startsWith('/participants')) {
+    const pPath = '/tmp/zoom-active-participants.json';
+    try {
+      if (fs.existsSync(pPath)) {
+        const participants = JSON.parse(fs.readFileSync(pPath, 'utf8'));
+        if (participants.length === 0) {
+          sendTelegramMessage(chatId, '👥 No active participants found in the meeting.');
+          return;
+        }
+        const hosts = participants.filter(p => p.role === 'Host');
+        const coHosts = participants.filter(p => p.role === 'Co-Host');
+        const regular = participants.filter(p => p.role === 'Participant');
+
+        let respText = `👥 *Active Meeting Participants (${participants.length}):*\n\n`;
+        if (hosts.length > 0) {
+          respText += `👑 *Host:*\n` + hosts.map(p => `• ${p.name}`).join('\n') + `\n\n`;
+        }
+        if (coHosts.length > 0) {
+          respText += `🛡️ *Co-Hosts:*\n` + coHosts.map(p => `• ${p.name}`).join('\n') + `\n\n`;
+        }
+        if (regular.length > 0) {
+          respText += `👤 *Participants:*\n` + regular.map(p => `• ${p.name}`).join('\n') + `\n`;
+        }
+        sendTelegramMessage(chatId, respText);
+      } else {
+        sendTelegramMessage(chatId, '👥 Active participants record file does not exist on server.');
+      }
+    } catch (e) {
+      sendTelegramMessage(chatId, `❌ Failed to read participants: ${e.message}`);
+    }
     return;
   }
 }
