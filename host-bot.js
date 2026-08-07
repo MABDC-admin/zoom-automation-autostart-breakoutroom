@@ -7,7 +7,27 @@ const CHROMIUM_PATH = '/usr/bin/chromium-browser';
 const gradeRooms = Array.from({ length: 12 }, (_, i) => `Grade ${i + 1}`);
 
 // Staff members to auto-promote to Co-Host
-const STAFF_TO_PROMOTE = ['Krisha'];
+const STAFF_TO_PROMOTE = [
+  'Krisha',
+  'Myranel D. Plaza',
+  'Aimee June A. Alolor',
+  'Revelyn A. Galang',
+  'Michelle R. Aserios',
+  'Krisha Dwine R. Riotoc',
+  'Julie Fe L. Benedicto',
+  'Jecille F. Buizon',
+  'Jayson B. Cuello',
+  'Jan Alfred P. Macalintal',
+  'Jade Emerald A. Amurao',
+  'Homer S. Macrohon',
+  'Glorie Ann I. Espinosa',
+  'Eulogio E. Dadula',
+  'Princess Jesa D. Tagulao',
+  'Mark John J. Ramirez',
+  'Christine Mari M. Jonson',
+  'Arianne Kaye N. Sager',
+  'Renz Vincent S. Aclan'
+];
 
 export async function launchHostBot() {
   console.log(`\n========================================================`);
@@ -277,6 +297,20 @@ async function promoteStaffToCoHost(page, targetName) {
       return elements;
     }
 
+    function matchName(candidateName, targetName) {
+      const candidateLower = candidateName.toLowerCase();
+      const targetLower = targetName.toLowerCase();
+      
+      if (candidateLower.includes(targetLower) || targetLower.includes(candidateLower)) {
+        return true;
+      }
+      
+      const targetParts = targetLower.split(/\s+/).filter(part => part.length > 1 && !part.endsWith('.'));
+      if (targetParts.length === 0) return false;
+      
+      return targetParts.every(part => candidateLower.includes(part));
+    }
+
     const nameLower = name.toLowerCase();
     const candidates = querySelectorAllShadow('.participants-item__item-layout, .participants-item, li, tr, .participant-list-item, div');
     let targetRow = null;
@@ -287,7 +321,7 @@ async function promoteStaffToCoHost(page, targetName) {
         const rowText = nameSpan.innerText || nameSpan.textContent || '';
         const rowTextLower = rowText.toLowerCase();
 
-        if (rowTextLower.includes(nameLower)) {
+        if (matchName(rowTextLower, nameLower)) {
           const parentRow = nameSpan.closest('.participants-item__item-layout, .participants-item, .participants-item-position, li');
           const parentText = parentRow ? (parentRow.innerText || parentRow.textContent || '') : '';
           
