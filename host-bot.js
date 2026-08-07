@@ -318,10 +318,14 @@ async function promoteStaffToCoHost(page, targetName) {
       return { status: 'clicked_more' };
     }
 
-    return { status: 'more_button_not_found', buttonCount: buttons.length };
+    return { 
+      status: 'more_button_not_found', 
+      buttonCount: buttons.length, 
+      buttonsText: buttons.map(b => b.innerText || b.textContent || b.getAttribute('aria-label') || '').join(', ') 
+    };
   }, targetName);
 
-  console.log(`🤖 [OPENCLAW] Step 1 result for ${targetName}: ${result.status}`, result.text || '');
+  console.log(`🤖 [OPENCLAW] Step 1 result for ${targetName}: ${result.status} | Buttons Count: ${result.buttonCount} | Buttons: [${result.buttonsText || ''}]`);
 
   if (result.status === 'clicked_more') {
     // Wait for dropdown menu to render
