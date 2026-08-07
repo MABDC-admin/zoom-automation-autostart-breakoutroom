@@ -84,8 +84,17 @@ export async function launchHostBot() {
   let roomsOpened = false;
   let tickCount = 0;
   const alreadyPromoted = new Set();
+  let consecutiveErrors = 0;
 
   const autoClicker = setInterval(async () => {
+    // Exit if too many consecutive errors (watchdog will restart)
+    if (consecutiveErrors >= 10) {
+      console.error('🚨 [FATAL ERROR] 10 consecutive loop errors. Exiting process for watchdog restart.');
+      clearInterval(autoClicker);
+      await browser.close().catch(() => {});
+      process.exit(1);
+    }
+
     // Write heartbeat file
     try {
       fs.writeFileSync('/tmp/zoom-host-bot-heartbeat.txt', Date.now().toString());
@@ -104,6 +113,7 @@ export async function launchHostBot() {
     }
 
     tickCount++;
+    let successThisTick = true;
 
     // Scan Chat for co-host requests (every 5 seconds)
     if (tickCount % 2 === 0) {
@@ -111,6 +121,9 @@ export async function launchHostBot() {
         await checkChatAndPromote(page, alreadyPromoted);
       } catch (err) {
         console.error('❌ [OPENCLAW ERROR] Chat co-host trigger check failed:', err.message);
+        if (err.message.includes('detached') || err.message.includes('closed') || err.message.includes('Session closed')) {
+          successThisTick = false;
+        }
       }
     }
 
@@ -128,7 +141,16 @@ export async function launchHostBot() {
         }
       } catch (err) {
         console.error('❌ [OPENCLAW ERROR] Co-host auto-promotion failed:', err.message);
+        if (err.message.includes('detached') || err.message.includes('closed') || err.message.includes('Session closed')) {
+          successThisTick = false;
+        }
       }
+    }
+
+    if (successThisTick) {
+      consecutiveErrors = 0;
+    } else {
+      consecutiveErrors++;
     }
 
     try {
