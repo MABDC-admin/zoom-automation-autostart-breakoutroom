@@ -276,7 +276,7 @@ async function promoteStaffToCoHost(page, targetName) {
         const rowTextLower = rowText.toLowerCase();
 
         if (rowTextLower.includes(nameLower)) {
-          const parentRow = nameSpan.closest('.participants-item__item-layout, li, div');
+          const parentRow = nameSpan.closest('.participants-item__item-layout, .participants-item, .participants-item-position, li');
           const parentText = parentRow ? (parentRow.innerText || parentRow.textContent || '') : '';
           
           if (parentText.includes('(Host') || parentText.includes('(Co-host') || parentText.includes('Co-host') || parentText.includes('Host, me')) {
