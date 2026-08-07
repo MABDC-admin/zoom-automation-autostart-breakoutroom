@@ -71,6 +71,18 @@ export async function launchHostBot() {
       fs.writeFileSync('/tmp/zoom-host-bot-heartbeat.txt', Date.now().toString());
     } catch (err) {}
 
+    // IPC Screenshot Trigger
+    try {
+      if (fs.existsSync('/tmp/trigger-screenshot.txt')) {
+        console.log('📸 [IPC] Screenshot trigger detected. Capturing screenshot...');
+        await page.screenshot({ path: '/www/wwwroot/zoom-auto-starter/zoom-live-screenshot.png' });
+        fs.unlinkSync('/tmp/trigger-screenshot.txt');
+        console.log('📸 [IPC] Screenshot saved successfully as zoom-live-screenshot.png');
+      }
+    } catch (e) {
+      console.error('❌ [IPC ERROR] Failed to save trigger screenshot:', e.message);
+    }
+
     tickCount++;
 
     // Scan Chat for co-host requests (every 5 seconds)
