@@ -98,11 +98,7 @@ export async function launchHostBot() {
     if (tickCount % 4 === 0) {
       try {
         for (const staffName of STAFF_TO_PROMOTE) {
-          if (alreadyPromoted.has(staffName)) continue;
-          const success = await promoteStaffToCoHost(page, staffName);
-          if (success) {
-            alreadyPromoted.add(staffName);
-          }
+          await promoteStaffToCoHost(page, staffName);
         }
       } catch (err) {
         console.error('❌ [OPENCLAW ERROR] Co-host auto-promotion failed:', err.message);
